@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ระบบบิลหอพักพุทธรักษา</title>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('399256514_1018582459584603_151014574961731545_n.jpg') no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .gui-container {
+      background: rgba(255, 255, 255, 1);
+      padding: 40px 60px;
+      border-radius: 20px;
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      max-width: 600px;
+      width: 100%;
+      color: #333;
+      overflow-y: auto;
+      max-height: 95vh;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: #2575fc;
+      font-weight: 700;
+    }
+
+    p.description {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      color: #555;
+    }
+
+    .button-container, .small-button-container {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+
+    .price-button {
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 8px 15px rgba(37, 117, 252, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .price-button:hover {
+      background: linear-gradient(135deg, #2575fc, #6a11cb);
+      transform: translateY(-3px);
+    }
+
+    .small-button {
+      background-color: #2575fc;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 12px rgba(37, 117, 252, 0.4);
+      transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .small-button:hover {
+      background-color: #1a54b8;
+      transform: translateY(-2px);
+    }
+
+    #bill-form {
+      display: none;
+      text-align: left;
+      margin-top: 20px;
+    }
+
+    #bill-form input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    #bills-display {
+      text-align: left;
+      margin-top: 20px;
+      display: none;
+      max-height: 300px;
+      overflow-y: auto;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+
+    .bill-item {
+      background: #f3f6ff;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      position: relative;
+    }
+
+    .bill-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .clear-button {
+      margin-top: 10px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="gui-container">
+    <h1>ระบบ บิลหอพักพุทธรักษา</h1>
+    <p class="description">ราคาห้องเช่า เลือกได้ตามต้องการ</p>
+
+    <div class="button-container">
+      <button type="button" class="price-button" onclick="filterByRent(2000)">ราคา 2000 บาท</button>
+      <button type="button" class="price-button" onclick="filterByRent(2500)">ราคา 2500 บาท</button>
+      <button type="button" class="price-button" onclick="filterByRent(3200)">ราคา 3200 บาท</button>
+    </div>
+
+    <div class="small-button-container">
+      <button type="button" class="small-button" onclick="showForm()">กรอกบิลหอพัก</button>
+      <button type="button" class="small-button" onclick="showBills()">ดูบิลย้อนหลัง</button>
+      <button type="button" class="small-button" onclick="compareElectricity()">เปรียบเทียบค่าไฟ</button>
+    </div>
+
+    <form id="bill-form" onsubmit="saveBill(event)">
+      <input type="text" id="room" placeholder="ห้อง" required />
+      <input type="text" id="tenant" placeholder="ชื่อผู้เช่า" required />
+      <input type="number" id="rent" placeholder="ค่าเช่าห้อง (บาท)" required />
+      <input type="number" id="electric" placeholder="ใช้ไฟ (หน่วย)" required />
+      <input type="number" id="cleaning" placeholder="ค่าทำความสะอาด" required />
+      <input type="number" id="other" placeholder="ค่าอื่นๆ" required />
+      <button type="submit" class="small-button">บันทึกบิล</button>
+    </form>
+
+    <div id="bills-display"></div>
+  </div>
+
+  <script>
+    function showForm() {
+      document.getElementById("bill-form").style.display = "block";
+      document.getElementById("bills-display").style.display = "none";
+    }
+
+    function showBills() {
+      displayBills();
+    }
+
+    function filterByRent(price) {
+      displayBills(price);
+    }
+
+    function displayBills(filterPrice = null) {
+      document.getElementById("bill-form").style.display = "none";
+      const display = document.getElementById("bills-display");
+      display.innerHTML = '';
+      const bills = JSON.parse(localStorage.getItem("bills") || "[]");
+
+      const filteredBills = filterPrice !== null
+        ? bills.filter(b => parseFloat(b.rent) === price)
+        : bills;
+
+      if (filteredBills.length === 0) {
+        display.innerHTML = "<p>ไม่พบบิล</p>";
+      } else {
+        filteredBills.forEach((bill, index) => {
+          const total = (
+            parseFloat(bill.rent) +
+            100 +
+            bill.electric * 8 +
+            parseFloat(bill.cleaning) +
+            parseFloat(bill.other)
+          ).toFixed(2);
+
+          const html = `
+            <div class="bill-item" id="bill-${index}">
+              <strong>วันที่:</strong> ${bill.date}<br/>
+              <strong>ชื่อผู้เช่า:</strong> ${bill.tenant}<br/>
+              <strong>ห้อง:</strong> ${bill.room}<br/>
+              <strong>ค่าเช่า:</strong> ${bill.rent} บาท<br/>
+              <strong>ค่าน้ำ:</strong> 100 บาท<br/>
+              <strong>ค่าไฟ (${bill.electric} หน่วย):</strong> ${bill.electric * 8} บาท<br/>
+              <strong>ค่าทำความสะอาด:</strong> ${bill.cleaning} บาท<br/>
+              <strong>ค่าอื่นๆ:</strong> ${bill.other} บาท<br/>
+              <strong>รวม:</strong> ${total} บาท
+
+              <div class="bill-buttons">
+                <button class="small-button" onclick="saveAsImage('bill-${index}')">📸 บันทึกเป็นรูป</button>
+                <button class="small-button" onclick="deleteBill(${index})">🗑️ ลบบิลนี้</button>
+              </div>
+            </div>
+          `;
+          display.innerHTML += html;
+        });
+
+        display.innerHTML += `
+          <div class="clear-button">
+            <button class="small-button" onclick="clearBills()">ล้างบิลทั้งหมด</button>
+          </div>
+        `;
+      }
+
+      display.style.display = "block";
+    }
+
+    function saveBill(event) {
+      event.preventDefault();
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString('th-TH');
+      const bill = {
+        room: document.getElementById("room").value,
+        tenant: document.getElementById("tenant").value,
+        rent: parseFloat(document.getElementById("rent").value),
+        electric: parseFloat(document.getElementById("electric").value),
+        cleaning: parseFloat(document.getElementById("cleaning").value),
+        other: parseFloat(document.getElementById("other").value),
+        date: formattedDate
+      };
+
+      const bills = JSON.parse(localStorage.getItem("bills") || "[]");
+      bills.push(bill);
+      localStorage.setItem("bills", JSON.stringify(bills));
+
+      alert("บันทึกบิลเรียบร้อยแล้ว!");
+      document.getElementById("bill-form").reset();
+      document.getElementById("bill-form").style.display = "none";
+    }
+
+    function clearBills() {
+      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างบิลทั้งหมด?")) {
+        localStorage.removeItem("bills");
+        alert("ล้างบิลทั้งหมดแล้ว");
+        displayBills();
+      }
+    }
+
+    function deleteBill(index) {
+      const bills = JSON.parse(localStorage.getItem("bills") || "[]");
+      if (confirm("ลบบิลนี้ใช่หรือไม่?")) {
+        bills.splice(index, 1);
+        localStorage.setItem("bills", JSON.stringify(bills));
+        displayBills();
+      }
+    }
+
+    function saveAsImage(id) {
+      const element = document.getElementById(id);
+      html2canvas(element).then(canvas => {
+        const link = document.createElement("a");
+        link.download = `${id}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+
+    function compareElectricity() {
+      document.getElementById("bill-form").style.display = "none";
+      const display = document.getElementById("bills-display");
+      display.innerHTML = '';
+      const bills = JSON.parse(localStorage.getItem("bills") || "[]");
+
+      if (bills.length < 2) {
+        display.innerHTML = "<p>ต้องมีอย่างน้อย 2 บิลเพื่อเปรียบเทียบ</p>";
+        display.style.display = "block";
+        return;
+      }
+
+      const roomGroups = {};
+      bills.forEach(bill => {
+        if (!roomGroups[bill.room]) {
+          roomGroups[bill.room] = [];
+        }
+        roomGroups[bill.room].push(bill);
+      });
+
+      let html = "<h3>เปรียบเทียบค่าไฟ (เฉพาะห้องที่มีหลายบิล)</h3>";
+      let hasComparison = false;
+
+      for (const room in roomGroups) {
+        const group = roomGroups[room];
+        if (group.length < 2) continue;
+
+        hasComparison = true;
+        html += `<h4>ห้อง ${room}</h4><ul>`;
+        group.forEach(bill => {
+          const electricCost = bill.electric * 8;
+          html += `<li>
+            <strong>วันที่:</strong> ${bill.date} | 
+            <strong>ใช้ไฟ:</strong> ${bill.electric} หน่วย | 
+            <strong>ค่าไฟ:</strong> ${electricCost} บาท
+          </li>`;
+        });
+        html += `</ul>`;
+      }
+
+      if (!hasComparison) {
+        html += "<p>ไม่มีห้องที่มีหลายบิลเพื่อเปรียบเทียบ</p>";
+      }
+
+      display.innerHTML = html;
+      display.style.display = "block";
+    }
+  </script>
+</body>
+</html>
