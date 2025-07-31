@@ -161,6 +161,7 @@
       <input type="text" id="room" placeholder="ห้อง" required />
       <input type="text" id="tenant" placeholder="ชื่อผู้เช่า" required />
       <input type="number" id="rent" placeholder="ค่าเช่าห้อง (บาท)" required />
+      <input type="number" id="water" placeholder="ค่าน้ำ (บาท)" required />
       <input type="number" id="electric" placeholder="ใช้ไฟ (หน่วย)" required />
       <input type="number" id="cleaning" placeholder="ค่าทำความสะอาด" required />
       <input type="number" id="other" placeholder="ค่าอื่นๆ" required />
@@ -203,7 +204,7 @@
         filteredBills.forEach((bill, index) => {
           const total = (
             parseFloat(bill.rent) +
-            100 +
+            parseFloat(bill.water) +
             bill.electric * 8 +
             parseFloat(bill.cleaning) +
             parseFloat(bill.other)
@@ -226,7 +227,7 @@
               <strong>ชื่อผู้เช่า:</strong> ${bill.tenant}<br/>
               <strong>ห้อง:</strong> ${bill.room}<br/>
               <strong>ค่าเช่า:</strong> ${bill.rent} บาท<br/>
-              <strong>ค่าน้ำ:</strong> 100 บาท<br/>
+              <strong>ค่าน้ำ:</strong> ${bill.water} บาท<br/>
               <strong>ค่าไฟ (${bill.electric} หน่วย):</strong> ${bill.electric * 8} บาท<br/>
               <strong>ค่าทำความสะอาด:</strong> ${bill.cleaning} บาท<br/>
               <strong>ค่าอื่นๆ:</strong> ${bill.other} บาท<br/>
@@ -271,6 +272,7 @@
         room: document.getElementById("room").value,
         tenant: document.getElementById("tenant").value,
         rent: parseFloat(document.getElementById("rent").value),
+        water: parseFloat(document.getElementById("water").value),
         electric: parseFloat(document.getElementById("electric").value),
         cleaning: parseFloat(document.getElementById("cleaning").value),
         other: parseFloat(document.getElementById("other").value),
