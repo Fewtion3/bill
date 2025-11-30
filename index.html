@@ -365,6 +365,7 @@
 
             if (docSnap.exists()) {
                 const bill = docSnap.data();
+              console.log("✔️ ข้อมูลบิลที่ดึงได้:", bill); // <--- เพิ่มบรรทัดนี้
                 document.getElementById("room").value = bill.room;
                 document.getElementById("tenant").value = bill.tenant;
                 document.getElementById("rent").value = bill.rent;
@@ -501,4 +502,5 @@
   
 </body>
 </html>
+
 
