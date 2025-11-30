@@ -252,10 +252,10 @@
             if (editingId) {
                 const billRef = doc(db, "bills", editingId);
                 await updateDoc(billRef, billData);
-                alert("อัปเดตบิลเรียบร้อยแล้ว! (Firestore)");
+                alert("อัปเดตบิลเรียบร้อยแล้ว!");
             } else {
                 await addDoc(billsCollection, billData);
-                alert("บันทึกบิลเรียบร้อยแล้ว! (Firestore)");
+                alert("บันทึกบิลเรียบร้อยแล้ว!");
             }
         } catch (e) {
             console.error("Error saving/updating document: ", e);
@@ -328,7 +328,12 @@
                             
                             <div style="margin-top: 10px; font-size: 0.85rem; color: #555;">
                                 <em>
-                                    หมายเหตุ: กรุณาชำระเงินภายในวันที่ 5 ของทุกเดือน...
+                                    หมายเหตุ: กรุณาชำระเงินภายในวันที่ 5 ของทุกเดือน<br/>
+                                    หลังวันที่ 5 ปรับวันละ 20 บาท<br/>
+                                    หลังวันที่ 15 ปรับวันละ 50 บาท<br/>
+                                    หรือโปรดโอนเข้าบัญชี ธ. กรุงไทย สาขา โลตัสวารินชำราบ<br/>
+                                    เลขที่ 393-0-37364-5 ชื่อบัญชี นางพิชญาภรณ์ สุวรรณกูฏ<br/>
+                                    พร้อมเพย์ 0865825196 ชื่อ นางพิชญาภรณ์ สุวรรณกูฏ
                                 </em>
                             </div>
 
@@ -394,7 +399,7 @@
         if (confirm("ลบบิลนี้ใช่หรือไม่?")) {
             try {
                 await deleteDoc(doc(db, "bills", id));
-                alert("ลบบิลเรียบร้อยแล้ว! (Firestore)");
+                alert("ลบบิลเรียบร้อยแล้ว!");
                 displayBills();
             } catch (e) {
                 console.error("Error deleting document: ", e);
@@ -413,7 +418,7 @@
                     deletePromises.push(deleteDoc(doc.ref));
                 });
                 await Promise.all(deletePromises);
-                alert("ล้างบิลทั้งหมดแล้ว! (Firestore)");
+                alert("ล้างบิลทั้งหมดแล้ว!");
                 displayBills();
             } catch (e) {
                 console.error("Error clearing documents: ", e);
@@ -503,6 +508,7 @@
   
 </body>
 </html>
+
 
 
 
