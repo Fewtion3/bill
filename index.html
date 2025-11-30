@@ -171,243 +171,334 @@
     <div id="bills-display"></div>
   </div>
 
-  <script>
-    let editingIndex = null;
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+        getFirestore, 
+        collection, 
+        addDoc, 
+        getDocs, 
+        deleteDoc, 
+        doc, 
+        updateDoc,
+        orderBy,
+        query
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    function editBill(index) {
-  const bills = JSON.parse(localStorage.getItem("bills") || "[]");
-  const bill = bills[index];
-  document.getElementById("room").value = bill.room;
-  document.getElementById("tenant").value = bill.tenant;
-  document.getElementById("rent").value = bill.rent;
-  document.getElementById("water").value = bill.water;
-  document.getElementById("electric").value = bill.electric;
-  document.getElementById("cleaning").value = bill.cleaning;
-  document.getElementById("other").value = bill.other;
+    // **1. การตั้งค่า Firebase/Firestore (ตรวจสอบให้แน่ใจว่าข้อมูลนี้ถูกต้อง)**
+    const firebaseConfig = {
+        apiKey: "AIzaSyA3cyOB17I-p-PGgUCSduXgwsREajZBSiU",
+        authDomain: "bill-puttharaksa.firebaseapp.com",
+        projectId: "bill-puttharaksa",
+        storageBucket: "bill-puttharaksa.appspot.com",
+        messagingSenderId: "645837893122",
+        appId: "1:645837893122:web:cce76dbff19d960c33811b",
+        measurementId: "G-X0EWMS7H3J"
+    };
 
-  editingIndex = index;
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const billsCollection = collection(db, "bills"); // ชื่อ Collection ใน Firestore
 
-  document.getElementById("bill-form").style.display = "block";
-  document.getElementById("bills-display").style.display = "none";
+    let editingId = null; // ใช้เก็บ document ID ของ Firestore สำหรับการแก้ไข
 
-  document.querySelector("#bill-form button[type='submit']").textContent = "อัปเดตบิล";
-}
+    // --- ฟังก์ชันการแสดงผลและจัดการข้อมูล (เปลี่ยนไปใช้ Firestore) ---
+
+    // 2. ฟังก์ชันแสดงฟอร์ม
+    window.showForm = function() {
+        document.getElementById("bill-form").reset();
+        editingId = null;
+        document.querySelector("#bill-form button[type='submit']").textContent = "บันทึกบิล";
+        document.getElementById("bill-form").style.display = "block";
+        document.getElementById("bills-display").style.display = "none";
+        document.getElementById("rent").value = ""; // เคลียร์ช่องค่าเช่า
+    }
+
+    // 3. ฟังก์ชันแสดงบิล
+    window.showBills = function() {
+        document.getElementById("bill-form").style.display = "none";
+        displayBills();
+    }
+
+    // 4. ฟังก์ชันกรองราคา
+    window.filterByRent = function(price) {
+        document.getElementById("bill-form").style.display = "none";
+        displayBills(price);
+    }
     
-    function showForm() {
-      document.getElementById("bill-form").style.display = "block";
-      document.getElementById("bills-display").style.display = "none";
-      // เคลียร์ช่องค่าเช่าเมื่อแสดงฟอร์มใหม่
-      document.getElementById("rent").value = "";
-    }
+    // 5. บันทึก/อัปเดตบิลใน Firestore
+    window.saveBill = async function(event) {
+        event.preventDefault();
+        const today = new Date();
+        const timestamp = today.getTime(); // ใช้ timestamp สำหรับเรียงลำดับ
+        const formattedDate = today.toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const formattedTime = today.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-    function showBills() {
-      document.getElementById("bill-form").style.display = "none";
-      displayBills();
-    }
+        const billData = {
+            room: document.getElementById("room").value,
+            tenant: document.getElementById("tenant").value,
+            rent: parseFloat(document.getElementById("rent").value),
+            water: parseFloat(document.getElementById("water").value),
+            electric: parseFloat(document.getElementById("electric").value),
+            cleaning: parseFloat(document.getElementById("cleaning").value),
+            other: parseFloat(document.getElementById("other").value),
+            date: formattedDate,
+            time: formattedTime,
+            timestamp: timestamp // เพิ่ม timestamp สำหรับการจัดเรียง
+        };
 
-    function filterByRent(price) {
-      // แสดงบิลที่ตรงกับราคานี้
-      displayBills(price);
-    }
-
-    function displayBills(filterPrice = null) {
-      const display = document.getElementById("bills-display");
-      display.innerHTML = '';
-      const bills = JSON.parse(localStorage.getItem("bills") || "[]");
-
-      const filteredBills = filterPrice !== null
-        ? bills.filter(b => parseFloat(b.rent) === filterPrice)
-        : bills;
-
-      if (filteredBills.length === 0) {
-        display.innerHTML = "<p>ไม่พบบิล</p>";
-      } else {
-        filteredBills.forEach((bill, index) => {
-          const total = (
-            parseFloat(bill.rent) +
-            parseFloat(bill.water) +
-            bill.electric * 8 +
-            parseFloat(bill.cleaning) +
-            parseFloat(bill.other)
-          ).toFixed(2);
-
-          const html = `
-            <div class="bill-item" id="bill-${index}">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <h2 style="margin: 0; color: #2575fc;">หอพักพุทธรักษา</h2>
-                        <strong>วันที่:</strong> ${bill.date} เวลา:${bill.time} น.<br/>
-                    </div>
-                    <div style="text-align: right; font-size: 0.85rem;">
-                        23 หมู่ 9 บ้านน้อยเจริญ ต.ธาตุ อ.วารินชำราบ <br/>
-                        จ.อุบลราชธานี รหัสไปรษณีย์ 34190 <br/>
-                        โทร. 0865825196<br/>
-                        ID Line: pitchysu
-                    </div>
-                </div>
-                <hr/>
-              <strong>ชื่อผู้เช่า:</strong> ${bill.tenant}<br/>
-              <strong>ห้อง:</strong> ${bill.room}<br/>
-              <strong>ค่าเช่า:</strong> ${bill.rent} บาท<br/>
-              <strong>ค่าน้ำ:</strong> ${bill.water} บาท<br/>
-              <strong>ค่าไฟ (${bill.electric} หน่วย):</strong> ${bill.electric * 8} บาท<br/>
-              <strong>ค่าทำความสะอาด:</strong> ${bill.cleaning} บาท<br/>
-              <strong>ค่าอื่นๆ:</strong> ${bill.other} บาท<br/>
-              <strong>รวม:</strong> ${total} บาท
-              
-              <div style="margin-top: 10px; font-size: 0.85rem; color: #555;">
-                <em>
-                    หมายเหตุ: กรุณาชำระเงินภายในวันที่ 5 ของทุกเดือน<br/>
-                    หลังวันที่ 5 ปรับวันละ 20 บาท<br/>
-                    หลังวันที่ 15 ปรับวันละ 50 บาท<br/>
-                    หรือโปรดโอนเข้าบัญชี ธ. กรุงไทย สาขา โลตัสวารินชำราบ<br/>
-                    เลขที่ 393-0-37364-5 ชื่อบัญชี นางพิชญาภรณ์ สุวรรณกูฏ<br/>
-                    พร้อมเพย์ 0865825196 ชื่อ นางพิชญาภรณ์ สุวรรณกูฏ
-                </em>
-            </div>
-
-              <div class="bill-buttons">
-                <button class="small-button" onclick="editBill(${index})">✏️ แก้ไข</button>
-                <button class="small-button" onclick="saveAsImage('bill-${index}')">📸 บันทึกเป็นรูป</button>
-                <button class="small-button" onclick="deleteBill(${index})">🗑️ ลบบิลนี้</button>
-              </div>
-            </div>
-          `;
-          display.innerHTML += html;
-        });
-
-        display.innerHTML += `
-          <div class="clear-button">
-            <button class="small-button" onclick="clearBills()">ล้างบิลทั้งหมด</button>
-          </div>
-        `;
-      }
-
-      display.style.display = "block";
-    }
-
-    // ส่วนอื่นๆ เหมือนเดิม...
-
-    function saveBill(event) {
-  event.preventDefault();
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('th-TH', {
-  year: 'numeric', month: '2-digit', day: '2-digit'
-});
-
-const formattedTime = today.toLocaleTimeString('th-TH', {
-  hour: '2-digit', minute: '2-digit'
-});
-  const bill = {
-    room: document.getElementById("room").value,
-    tenant: document.getElementById("tenant").value,
-    rent: parseFloat(document.getElementById("rent").value),
-    water: parseFloat(document.getElementById("water").value),
-    electric: parseFloat(document.getElementById("electric").value),
-    cleaning: parseFloat(document.getElementById("cleaning").value),
-    other: parseFloat(document.getElementById("other").value),
-    date: formattedDate,
-    time: formattedTime
-  };
-
-  let bills = JSON.parse(localStorage.getItem("bills") || "[]");
-
-  if (editingIndex !== null) {
-    bills[editingIndex] = bill;
-    editingIndex = null;
-    alert("อัปเดตบิลเรียบร้อยแล้ว!");
-  } else {
-    bills.push(bill);
-    alert("บันทึกบิลเรียบร้อยแล้ว!");
-  }
-
-  localStorage.setItem("bills", JSON.stringify(bills));
-
-  document.getElementById("bill-form").reset();
-  document.getElementById("bill-form").style.display = "none";
-  document.querySelector("#bill-form button[type='submit']").textContent = "บันทึกบิล";
-}
-
-    function clearBills() {
-      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างบิลทั้งหมด?")) {
-        localStorage.removeItem("bills");
-        alert("ล้างบิลทั้งหมดแล้ว");
-        displayBills();
-      }
-    }
-
-    function deleteBill(index) {
-      const bills = JSON.parse(localStorage.getItem("bills") || "[]");
-      if (confirm("ลบบิลนี้ใช่หรือไม่?")) {
-        bills.splice(index, 1);
-        localStorage.setItem("bills", JSON.stringify(bills));
-        displayBills();
-      }
-    }
-
-    function saveAsImage(id) {
-      const element = document.getElementById(id);
-
-      const buttons = element.querySelectorAll(".bill-buttons");
-      buttons.forEach(btn => btn.style.display = "none");
-
-      html2canvas(element).then(canvas => {
-        const link = document.createElement("a");
-        link.download = `${id}.png`;
-        link.href = canvas.toDataURL();
-        link.click();
-
-        buttons.forEach(btn => btn.style.display = "flex");
-      });
-    }
-
-    function compareElectricity() {
-      document.getElementById("bill-form").style.display = "none";
-      const display = document.getElementById("bills-display");
-      display.innerHTML = '';
-      const bills = JSON.parse(localStorage.getItem("bills") || "[]");
-
-      if (bills.length < 2) {
-        display.innerHTML = "<p>ต้องมีอย่างน้อย 2 บิลเพื่อเปรียบเทียบ</p>";
-        display.style.display = "block";
-        return;
-      }
-
-      const roomGroups = {};
-      bills.forEach(bill => {
-        if (!roomGroups[bill.room]) {
-          roomGroups[bill.room] = [];
+        try {
+            if (editingId) {
+                const billRef = doc(db, "bills", editingId);
+                await updateDoc(billRef, billData);
+                alert("อัปเดตบิลเรียบร้อยแล้ว! (Firestore)");
+            } else {
+                await addDoc(billsCollection, billData);
+                alert("บันทึกบิลเรียบร้อยแล้ว! (Firestore)");
+            }
+        } catch (e) {
+            console.error("Error saving/updating document: ", e);
+            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
         }
-        roomGroups[bill.room].push(bill);
-      });
 
-      let html = "<h3>เปรียบเทียบค่าไฟ (เฉพาะห้องที่มีหลายบิล)</h3>";
-      let hasComparison = false;
-
-      for (const room in roomGroups) {
-        const group = roomGroups[room];
-        if (group.length < 2) continue;
-
-        hasComparison = true;
-        html += `<h4>ห้อง ${room}</h4><ul>`;
-        group.forEach(bill => {
-          const electricCost = bill.electric * 8;
-          html += `<li>
-            <strong>วันที่:</strong> ${bill.date} | 
-            <strong>ใช้ไฟ:</strong> ${bill.electric} หน่วย | 
-            <strong>ค่าไฟ:</strong> ${electricCost} บาท
-          </li>`;
-        });
-        html += `</ul>`;
-      }
-
-      if (!hasComparison) {
-        html += "<p>ไม่มีห้องที่มีหลายบิลเพื่อเปรียบเทียบ</p>";
-      }
-
-      display.innerHTML = html;
-      display.style.display = "block";
+        document.getElementById("bill-form").reset();
+        document.getElementById("bill-form").style.display = "none";
+        document.querySelector("#bill-form button[type='submit']").textContent = "บันทึกบิล";
+        displayBills(); // แสดงบิลหลังบันทึก
     }
-  </script>
+
+    // 6. แสดงรายการบิลทั้งหมด (ดึงจาก Firestore)
+    window.displayBills = async function(filterPrice = null) {
+        const display = document.getElementById("bills-display");
+        display.innerHTML = 'กำลังโหลดบิล...';
+
+        try {
+            const q = query(billsCollection, orderBy("timestamp", "desc")); // เรียงจากล่าสุด
+            const querySnapshot = await getDocs(q);
+            let bills = [];
+            querySnapshot.forEach((doc) => {
+                const bill = doc.data();
+                bill.id = doc.id; // เก็บ Document ID ไว้สำหรับการแก้ไข/ลบ
+                bills.push(bill);
+            });
+
+            // กรองตามราคา (ถ้ามี)
+            const filteredBills = filterPrice !== null
+                ? bills.filter(b => parseFloat(b.rent) === filterPrice)
+                : bills;
+
+            if (filteredBills.length === 0) {
+                display.innerHTML = "<p>ไม่พบบิล</p>";
+            } else {
+                display.innerHTML = '';
+                filteredBills.forEach((bill) => {
+                    const electricCost = bill.electric * 8;
+                    const total = (
+                        bill.rent +
+                        bill.water +
+                        electricCost +
+                        bill.cleaning +
+                        bill.other
+                    ).toFixed(2);
+
+                    const html = `
+                        <div class="bill-item" id="bill-${bill.id}">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <h2 style="margin: 0; color: #2575fc;">หอพักพุทธรักษา</h2>
+                                    <strong>วันที่:</strong> ${bill.date} เวลา:${bill.time} น.<br/>
+                                </div>
+                                <div style="text-align: right; font-size: 0.85rem;">
+                                    23 หมู่ 9 บ้านน้อยเจริญ ต.ธาตุ อ.วารินชำราบ <br/>
+                                    จ.อุบลราชธานี รหัสไปรษณีย์ 34190 <br/>
+                                    โทร. 0865825196<br/>
+                                    ID Line: pitchysu
+                                </div>
+                            </div>
+                            <hr/>
+                            <strong>ชื่อผู้เช่า:</strong> ${bill.tenant}<br/>
+                            <strong>ห้อง:</strong> ${bill.room}<br/>
+                            <strong>ค่าเช่า:</strong> ${bill.rent} บาท<br/>
+                            <strong>ค่าน้ำ:</strong> ${bill.water} บาท<br/>
+                            <strong>ค่าไฟ (${bill.electric} หน่วย):</strong> ${electricCost} บาท<br/>
+                            <strong>ค่าทำความสะอาด:</strong> ${bill.cleaning} บาท<br/>
+                            <strong>ค่าอื่นๆ:</strong> ${bill.other} บาท<br/>
+                            <strong>รวม:</strong> ${total} บาท
+                            
+                            <div style="margin-top: 10px; font-size: 0.85rem; color: #555;">
+                                <em>
+                                    หมายเหตุ: กรุณาชำระเงินภายในวันที่ 5 ของทุกเดือน...
+                                </em>
+                            </div>
+
+                            <div class="bill-buttons">
+                                <button class="small-button" onclick="editBill('${bill.id}')">✏️ แก้ไข</button>
+                                <button class="small-button" onclick="saveAsImage('bill-${bill.id}')">📸 บันทึกเป็นรูป</button>
+                                <button class="small-button" onclick="deleteBill('${bill.id}')">🗑️ ลบบิลนี้</button>
+                            </div>
+                        </div>
+                    `;
+                    display.innerHTML += html;
+                });
+
+                display.innerHTML += `
+                    <div class="clear-button">
+                        <button class="small-button" onclick="clearBills()">ล้างบิลทั้งหมด</button>
+                    </div>
+                `;
+            }
+
+            display.style.display = "block";
+            return bills; // คืนค่า bills ที่มี ID เพื่อใช้ในฟังก์ชันอื่น
+        } catch (e) {
+            console.error("Error getting documents: ", e);
+            display.innerHTML = "<p>เกิดข้อผิดพลาดในการโหลดบิล</p>";
+            return [];
+        }
+    }
+
+    // 7. แก้ไขบิล (ดึงข้อมูลจาก Firestore ด้วย ID)
+    window.editBill = async function(id) {
+        try {
+            const docRef = doc(db, "bills", id);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const bill = docSnap.data();
+                document.getElementById("room").value = bill.room;
+                document.getElementById("tenant").value = bill.tenant;
+                document.getElementById("rent").value = bill.rent;
+                document.getElementById("water").value = bill.water;
+                document.getElementById("electric").value = bill.electric;
+                document.getElementById("cleaning").value = bill.cleaning;
+                document.getElementById("other").value = bill.other;
+
+                editingId = id; // กำหนด ID ที่กำลังแก้ไข
+
+                document.getElementById("bill-form").style.display = "block";
+                document.getElementById("bills-display").style.display = "none";
+                document.querySelector("#bill-form button[type='submit']").textContent = "อัปเดตบิล";
+            } else {
+                alert("ไม่พบบิลที่ต้องการแก้ไข");
+            }
+        } catch (e) {
+            console.error("Error editing document: ", e);
+            alert("เกิดข้อผิดพลาดในการดึงข้อมูลบิล");
+        }
+    }
+
+    // 8. ลบบิลเดียว (ใช้ ID)
+    window.deleteBill = async function(id) {
+        if (confirm("ลบบิลนี้ใช่หรือไม่?")) {
+            try {
+                await deleteDoc(doc(db, "bills", id));
+                alert("ลบบิลเรียบร้อยแล้ว! (Firestore)");
+                displayBills();
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                alert("เกิดข้อผิดพลาดในการลบบิล");
+            }
+        }
+    }
+
+    // 9. ล้างบิลทั้งหมด (อันตราย! ลบทุก Document ใน Collection)
+    window.clearBills = async function() {
+        if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างบิลทั้งหมด? ข้อมูลจะถูกลบถาวรจากคลาวด์")) {
+            try {
+                const querySnapshot = await getDocs(billsCollection);
+                const deletePromises = [];
+                querySnapshot.forEach((doc) => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                await Promise.all(deletePromises);
+                alert("ล้างบิลทั้งหมดแล้ว! (Firestore)");
+                displayBills();
+            } catch (e) {
+                console.error("Error clearing documents: ", e);
+                alert("เกิดข้อผิดพลาดในการล้างบิลทั้งหมด");
+            }
+        }
+    }
+
+    // 10. เปรียบเทียบค่าไฟ (ต้องเรียกใช้ displayBills เพื่อดึงข้อมูลก่อน)
+    window.compareElectricity = async function() {
+        document.getElementById("bill-form").style.display = "none";
+        const display = document.getElementById("bills-display");
+        display.innerHTML = 'กำลังโหลดข้อมูล...';
+
+        const bills = await displayBills(null); // ดึงบิลทั้งหมด
+        
+        if (bills.length < 2) {
+             display.innerHTML = "<p>ต้องมีอย่างน้อย 2 บิลเพื่อเปรียบเทียบ</p>";
+             display.style.display = "block";
+             return;
+        }
+
+        const roomGroups = {};
+        bills.forEach(bill => {
+            if (!roomGroups[bill.room]) {
+                roomGroups[bill.room] = [];
+            }
+            roomGroups[bill.room].push(bill);
+        });
+
+        let html = "<h3>เปรียบเทียบค่าไฟ (เฉพาะห้องที่มีหลายบิล)</h3>";
+        let hasComparison = false;
+
+        for (const room in roomGroups) {
+            const group = roomGroups[room].sort((a, b) => a.timestamp - b.timestamp); // จัดเรียงตามเวลา
+            if (group.length < 2) continue;
+
+            hasComparison = true;
+            html += `<h4>ห้อง ${room}</h4><ul>`;
+            
+            for (let i = 0; i < group.length; i++) {
+                const bill = group[i];
+                const electricCost = bill.electric * 8;
+                let usageComparison = "";
+
+                if (i > 0) {
+                    const prevBill = group[i - 1];
+                    const diff = bill.electric - prevBill.electric;
+                    usageComparison = ` (แตกต่างจากเดือนก่อน: ${diff} หน่วย)`;
+                }
+
+                html += `<li>
+                    <strong>วันที่:</strong> ${bill.date} | 
+                    <strong>ใช้ไฟ:</strong> ${bill.electric} หน่วย | 
+                    <strong>ค่าไฟ:</strong> ${electricCost} บาท${usageComparison}
+                </li>`;
+            }
+            html += `</ul>`;
+        }
+
+        if (!hasComparison) {
+            html += "<p>ไม่มีห้องที่มีหลายบิลเพื่อเปรียบเทียบ</p>";
+        }
+
+        display.innerHTML = html;
+        display.style.display = "block";
+    }
+
+    // ฟังก์ชัน saveAsImage ยังคงใช้ได้เพราะทำงานกับ DOM
+    window.saveAsImage = function(id) {
+        const element = document.getElementById(id);
+
+        const buttons = element.querySelectorAll(".bill-buttons");
+        buttons.forEach(btn => btn.style.display = "none");
+
+        html2canvas(element).then(canvas => {
+            const link = document.createElement("a");
+            link.download = `${id}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+
+            buttons.forEach(btn => btn.style.display = "flex");
+        });
+    }
+
+</script>
+  
 </body>
 </html>
+
